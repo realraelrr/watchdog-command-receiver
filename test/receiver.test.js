@@ -22,6 +22,7 @@ function testConfig() {
         commands: {
           restart: {
             gateway: { argv: ['/bin/echo', 'hermes-gateway'], timeoutMs: 1000 },
+            cloudflared: { argv: ['/bin/echo', 'hermes-cloudflared'], timeoutMs: 1000 },
             all: { argv: ['/bin/echo', 'hermes-all'], timeoutMs: 1000 },
           },
         },
@@ -100,7 +101,7 @@ test('receiver preserves chat type for direct-message authorization', async () =
     text: '/wd list',
   });
 
-  assert.match(replies[0], /hermes restart gateway/);
+  assert.match(replies[0], /\/wd restart hermes gateway/);
   assert.equal(auditEntries[0].decision, 'listed');
 });
 
@@ -110,9 +111,18 @@ test('receiver replies with help and command list', async () => {
   await receiver.handleMessage({ ...context, text: '/wd help' });
   await receiver.handleMessage({ ...context, text: '/wd list' });
 
-  assert.match(replies[0], /\/wd <action> <target> <subject>/);
-  assert.match(replies[1], /hermes restart gateway/);
-  assert.match(replies[1], /openclaw restart gateway/);
+  assert.match(replies[0], /Watchdog 使用说明/);
+  assert.match(replies[0], /查看可用操作/);
+  assert.match(replies[0], /confirm <验证码>/);
+  assert.match(replies[1], /Watchdog 可用操作/);
+  assert.match(replies[1], /Hermes Gateway/);
+  assert.match(replies[1], /重启 Hermes 服务/);
+  assert.match(replies[1], /重启 Hermes 的 Tunnel/);
+  assert.match(replies[1], /\/wd restart hermes cloudflared/);
+  assert.match(replies[1], /需要二次确认/);
+  assert.match(replies[1], /OpenClaw Gateway/);
+  assert.match(replies[1], /重启 OpenClaw 服务/);
+  assert.match(replies[1], /\/wd restart openclaw gateway/);
 });
 
 test('receiver executes direct commands and records audit', async () => {
@@ -170,7 +180,7 @@ test('receiver handles confirmation-required commands', async () => {
 test('receiver reports unknown configured targets', async () => {
   const { receiver, replies, executed } = harness();
 
-  await receiver.handleMessage({ ...context, text: '/wd restart hermes cloudflared' });
+  await receiver.handleMessage({ ...context, text: '/wd restart hermes worker' });
 
   assert.equal(executed.length, 0);
   assert.match(replies[0], /Unknown target command/);

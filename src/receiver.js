@@ -3,11 +3,22 @@ import { commandKey, listCommands, resolveCommand } from './registry.js';
 
 export function formatHelp() {
   return [
-    'Commands:',
-    '/wd help',
+    'Watchdog 使用说明',
+    '',
+    '你可以让我重启本机上的 Hermes 或 OpenClaw 网关。',
+    '',
+    '查看可用操作：',
     '/wd list',
-    '/wd <action> <target> <subject>',
-    'confirm <token>',
+    '',
+    '执行重启：',
+    '/wd restart <服务> <对象>',
+    '',
+    '示例：',
+    '/wd restart hermes gateway',
+    '/wd restart openclaw gateway',
+    '',
+    '如果提示需要确认，请回复：',
+    'confirm <验证码>',
   ].join('\n');
 }
 
@@ -16,7 +27,61 @@ export function formatCommandList(config) {
   if (commands.length === 0) {
     return 'No configured commands.';
   }
-  return commands.map((entry) => `${entry.target} ${entry.action} ${entry.subject} - ${entry.label}`).join('\n');
+
+  const confirmationRequired = new Set(config?.policy?.requireConfirmation ?? []);
+  const grouped = new Map();
+  for (const entry of commands) {
+    if (!grouped.has(entry.label)) {
+      grouped.set(entry.label, []);
+    }
+    grouped.get(entry.label).push(entry);
+  }
+
+  const lines = ['Watchdog 可用操作', ''];
+  for (const [label, entries] of grouped) {
+    lines.push(label);
+    entries.sort(compareCommandEntries).forEach((entry, index) => {
+      lines.push(`${index + 1}. ${formatCommandTitle(entry)}`);
+      lines.push(`   /wd ${entry.action} ${entry.target} ${entry.subject}`);
+      if (confirmationRequired.has(entry.key)) {
+        lines.push('   需要二次确认');
+      }
+    });
+    lines.push('');
+  }
+  lines.push('其他命令');
+  lines.push('/wd help 查看帮助');
+  return lines.join('\n').trimEnd();
+}
+
+function formatCommandTitle(entry) {
+  if (entry.action === 'restart' && entry.target === 'hermes' && entry.subject === 'gateway') {
+    return '重启 Hermes 服务';
+  }
+  if (entry.action === 'restart' && entry.target === 'hermes' && entry.subject === 'cloudflared') {
+    return '重启 Hermes 的 Tunnel';
+  }
+  if (entry.action === 'restart' && entry.target === 'hermes' && entry.subject === 'all') {
+    return '重启 Hermes 服务 + Hermes 的 Tunnel';
+  }
+  if (entry.action === 'restart' && entry.target === 'openclaw' && entry.subject === 'gateway') {
+    return '重启 OpenClaw 服务';
+  }
+  return `${entry.action} ${entry.target} ${entry.subject}`;
+}
+
+function compareCommandEntries(a, b) {
+  const subjectOrder = new Map([
+    ['gateway', 0],
+    ['cloudflared', 1],
+    ['all', 2],
+  ]);
+  const actionCompare = a.action.localeCompare(b.action);
+  if (actionCompare !== 0) {
+    return actionCompare;
+  }
+  return (subjectOrder.get(a.subject) ?? 99) - (subjectOrder.get(b.subject) ?? 99)
+    || a.subject.localeCompare(b.subject);
 }
 
 function formatExecutionReply(command, result) {
