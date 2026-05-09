@@ -16,6 +16,7 @@ test('Feishu adapter extracts text message events', () => {
     extractFeishuMessage({
       sender: { sender_id: { open_id: 'ou_admin', user_id: 'user_1' } },
       message: {
+        message_id: 'om_1',
         chat_id: 'oc_ops',
         chat_type: 'p2p',
         message_type: 'text',
@@ -26,6 +27,7 @@ test('Feishu adapter extracts text message events', () => {
       senderId: 'ou_admin',
       chatId: 'oc_ops',
       chatType: 'p2p',
+      messageId: 'om_1',
       text: '/wd help',
     },
   );
@@ -36,6 +38,7 @@ test('Feishu adapter strips leading bot mentions before command parsing', () => 
     extractFeishuMessage({
       sender: { sender_id: { open_id: 'ou_admin' } },
       message: {
+        message_id: 'om_2',
         chat_id: 'oc_ops',
         chat_type: 'group',
         message_type: 'text',
@@ -46,6 +49,7 @@ test('Feishu adapter strips leading bot mentions before command parsing', () => 
       senderId: 'ou_admin',
       chatId: 'oc_ops',
       chatType: 'group',
+      messageId: 'om_2',
       text: '/wd help',
     },
   );
@@ -54,6 +58,7 @@ test('Feishu adapter strips leading bot mentions before command parsing', () => 
     extractFeishuMessage({
       sender: { sender_id: { open_id: 'ou_admin' } },
       message: {
+        message_id: 'om_3',
         chat_id: 'oc_ops',
         chat_type: 'group',
         message_type: 'text',
@@ -109,14 +114,54 @@ test('Feishu transport wires SDK event handler and reply API', async () => {
   transport.start();
   await registeredHandler({
     sender: { sender_id: { open_id: 'ou_admin' } },
-    message: { chat_id: 'oc_ops', chat_type: 'group', message_type: 'text', content: JSON.stringify({ text: '/wd help' }) },
+    message: { message_id: 'om_4', chat_id: 'oc_ops', chat_type: 'group', message_type: 'text', content: JSON.stringify({ text: '/wd help' }) },
   });
   await transport.reply({ chatId: 'oc_ops' }, 'hello');
 
   assert.ok(startedWith.eventDispatcher);
-  assert.deepEqual(messages, [{ senderId: 'ou_admin', chatId: 'oc_ops', chatType: 'group', text: '/wd help' }]);
+  assert.deepEqual(messages, [{ senderId: 'ou_admin', chatId: 'oc_ops', chatType: 'group', messageId: 'om_4', text: '/wd help' }]);
   assert.equal(createdMessages[0].data.receive_id, 'oc_ops');
   assert.equal(createdMessages[0].data.content, JSON.stringify({ text: 'hello' }));
+});
+
+test('Feishu transport ignores duplicate message deliveries', async () => {
+  let registeredHandler;
+  class FakeClient {
+    im = { v1: { message: { create: async () => {} } } };
+  }
+  class FakeDispatcher {
+    register(map) {
+      registeredHandler = map['im.message.receive_v1'];
+      return this;
+    }
+  }
+  class FakeWSClient {
+    start() {}
+  }
+  const messages = [];
+  const transport = createFeishuTransport({
+    Lark: {
+      Client: FakeClient,
+      EventDispatcher: FakeDispatcher,
+      WSClient: FakeWSClient,
+      LoggerLevel: { info: 'info' },
+    },
+    config: { feishu: { appId: 'cli_xxx', appSecret: 'secret' } },
+    onMessage: async (message) => messages.push(message),
+    logger: { debug() {}, info() {} },
+  });
+
+  transport.start();
+  const event = {
+    sender: { sender_id: { open_id: 'ou_admin' } },
+    message: { message_id: 'om_duplicate', chat_id: 'oc_ops', chat_type: 'group', message_type: 'text', content: JSON.stringify({ text: '/wd restart openclaw gateway' }) },
+  };
+
+  await registeredHandler(event);
+  await registeredHandler(event);
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].messageId, 'om_duplicate');
 });
 
 test('runtime simulate mode invokes receiver and writes output', async () => {

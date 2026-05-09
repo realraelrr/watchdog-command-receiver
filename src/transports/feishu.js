@@ -15,11 +15,12 @@ export function extractFeishuMessage(data) {
   const senderId = data?.sender?.sender_id?.open_id ?? data?.sender?.sender_id?.user_id ?? '';
   const chatId = message.chat_id ?? '';
   const chatType = message.chat_type ?? '';
+  const messageId = message.message_id ?? data?.event_id ?? '';
   if (!text || !senderId || !chatId) {
     return null;
   }
 
-  return { senderId, chatId, chatType, text };
+  return { senderId, chatId, chatType, messageId, text };
 }
 
 export function normalizeFeishuCommandText(text) {
@@ -38,6 +39,7 @@ export function normalizeFeishuCommandText(text) {
 }
 
 export function createFeishuTransport({ Lark, config, onMessage, logger = console }) {
+  const seenMessages = new RecentIdCache(config.feishu?.dedupeTtlMs ?? 10 * 60 * 1000);
   const baseConfig = {
     appId: config.feishu.appId,
     appSecret: config.feishu.appSecret,
@@ -58,7 +60,13 @@ export function createFeishuTransport({ Lark, config, onMessage, logger = consol
         logger.debug?.('ignored non-command Feishu text');
         return;
       }
+      if (message.messageId && seenMessages.has(message.messageId)) {
+        logger.info?.('ignored duplicate Feishu message', { messageId: message.messageId });
+        return;
+      }
+      seenMessages.add(message.messageId);
       logger.info?.('received Feishu command', {
+        messageId: message.messageId,
         senderId: message.senderId,
         chatId: message.chatId,
         chatType: message.chatType,
@@ -87,4 +95,33 @@ export function createFeishuTransport({ Lark, config, onMessage, logger = consol
       });
     },
   };
+}
+
+class RecentIdCache {
+  constructor(ttlMs) {
+    this.ttlMs = Number(ttlMs);
+    this.ids = new Map();
+  }
+
+  has(id) {
+    this.prune();
+    return this.ids.has(id);
+  }
+
+  add(id) {
+    if (!id) {
+      return;
+    }
+    this.prune();
+    this.ids.set(id, Date.now() + this.ttlMs);
+  }
+
+  prune() {
+    const now = Date.now();
+    for (const [id, expiresAt] of this.ids) {
+      if (expiresAt <= now) {
+        this.ids.delete(id);
+      }
+    }
+  }
 }
