@@ -17,23 +17,20 @@ export function parseCommand(text) {
     return { type: 'unknown', raw };
   }
 
-  const verb = (parts[1] ?? '').toLowerCase();
-  if (parts.length === 2 && verb === 'help') {
+  const action = (parts[1] ?? '').toLowerCase();
+  if (parts.length === 2 && action === 'help') {
     return { type: 'help', raw };
   }
-  if (parts.length === 2 && verb === 'list') {
+  if (parts.length === 2 && action === 'list') {
     return { type: 'list', raw };
   }
-  if (parts.length === 5 && verb === 'restart') {
-    return { type: 'unknown', raw };
-  }
-  if (parts.length === 4 && verb === 'restart') {
+  if (parts.length === 4 && tokenPattern.test(action)) {
     const target = parts[2].toLowerCase();
     const subject = parts[3].toLowerCase();
     if (tokenPattern.test(target) && tokenPattern.test(subject)) {
       return {
         type: 'execute',
-        action: 'restart',
+        action,
         target,
         subject,
         raw,

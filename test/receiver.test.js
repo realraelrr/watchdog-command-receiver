@@ -66,7 +66,15 @@ test('config loader reads and validates config files', () => {
   const loaded = loadConfig(configPath);
   assert.doesNotThrow(() => validateConfig(loaded));
   assert.equal(loaded.targets.hermes.label, 'Hermes Gateway');
-  assert.throws(() => validateConfig({ targets: {} }), /targets/);
+  assert.throws(() => validateConfig({ policy: testConfig().policy, targets: {} }), /targets/);
+  assert.throws(() => validateConfig({ policy: { allowedSenderIds: [], allowedChatIds: [] }, targets: testConfig().targets }), /allowedSenderIds/);
+  assert.throws(() => validateConfig({ policy: testConfig().policy, targets: { 'bad.target': testConfig().targets.hermes } }), /identifier/);
+  assert.throws(() => validateConfig({
+    policy: testConfig().policy,
+    targets: {
+      demo: { commands: { restart: { gateway: { argv: ['/bin/echo', 1] } } } },
+    },
+  }), /argv/);
 });
 
 test('receiver denies unauthorized messages before parsing commands', async () => {
@@ -86,7 +94,7 @@ test('receiver replies with help and command list', async () => {
   await receiver.handleMessage({ ...context, text: '/wd help' });
   await receiver.handleMessage({ ...context, text: '/wd list' });
 
-  assert.match(replies[0], /\/wd restart <target> <subject>/);
+  assert.match(replies[0], /\/wd <action> <target> <subject>/);
   assert.match(replies[1], /hermes restart gateway/);
   assert.match(replies[1], /openclaw restart gateway/);
 });
@@ -100,6 +108,34 @@ test('receiver executes direct commands and records audit', async () => {
   assert.match(replies[0], /succeeded/);
   assert.equal(auditEntries.at(-1).decision, 'executed');
   assert.equal(auditEntries.at(-1).commandKey, 'openclaw.restart.gateway');
+});
+
+test('receiver blocks concurrent duplicate executions with cooldown reservation', async () => {
+  let release;
+  const config = testConfig();
+  const policy = createPolicy(config, { now: () => 1000, tokenFactory: () => 'abc123' });
+  const replies = [];
+  const executed = [];
+  const receiver = createReceiver({
+    config,
+    policy,
+    executor: async (command) => {
+      executed.push(command.key);
+      await new Promise((resolve) => { release = resolve; });
+      return { ok: true, exitCode: 0, reason: 'ok', stdout: '', stderr: '', timedOut: false };
+    },
+    audit: { record: async () => {} },
+    reply: async (_context, text) => replies.push(text),
+  });
+
+  const first = receiver.handleMessage({ ...context, text: '/wd restart openclaw gateway' });
+  const second = receiver.handleMessage({ ...context, text: '/wd restart openclaw gateway' });
+  await new Promise((resolve) => setImmediate(resolve));
+  release();
+  await Promise.all([first, second]);
+
+  assert.deepEqual(executed, ['openclaw.restart.gateway']);
+  assert.equal(replies.some((reply) => /cooldown_active/.test(reply)), true);
 });
 
 test('receiver handles confirmation-required commands', async () => {

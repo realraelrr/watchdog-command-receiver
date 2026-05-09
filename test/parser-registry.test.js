@@ -12,6 +12,9 @@ const config = {
           gateway: { argv: ['/bin/echo', 'hermes-gateway'], timeoutMs: 1000 },
           all: { argv: ['/bin/echo', 'hermes-all'], timeoutMs: 1000 },
         },
+        status: {
+          brief: { argv: ['/bin/echo', 'hermes-status'], timeoutMs: 1000 },
+        },
       },
     },
     openclaw: {
@@ -25,7 +28,7 @@ const config = {
   },
 };
 
-test('parser accepts watchdog aliases and restart commands', () => {
+test('parser accepts watchdog aliases and configured action-shaped commands', () => {
   assert.deepEqual(parseCommand('/watchdog restart hermes gateway'), {
     type: 'execute',
     action: 'restart',
@@ -39,6 +42,13 @@ test('parser accepts watchdog aliases and restart commands', () => {
     target: 'openclaw',
     subject: 'gateway',
     raw: '/wd restart openclaw gateway',
+  });
+  assert.deepEqual(parseCommand('/wd status hermes brief'), {
+    type: 'execute',
+    action: 'status',
+    target: 'hermes',
+    subject: 'brief',
+    raw: '/wd status hermes brief',
   });
 });
 
@@ -73,6 +83,13 @@ test('registry lists and resolves only configured commands', () => {
       label: 'Hermes Gateway',
       action: 'restart',
       subject: 'gateway',
+    },
+    {
+      key: 'hermes.status.brief',
+      target: 'hermes',
+      label: 'Hermes Gateway',
+      action: 'status',
+      subject: 'brief',
     },
     {
       key: 'openclaw.restart.gateway',

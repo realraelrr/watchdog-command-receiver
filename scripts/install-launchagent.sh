@@ -19,6 +19,11 @@ escape_sed_replacement() {
 }
 
 sync_runtime_tree() {
+  if [[ ! -d "$REPO_ROOT/node_modules" ]]; then
+    echo "Run npm ci before installing: missing $REPO_ROOT/node_modules" >&2
+    exit 1
+  fi
+
   mkdir -p "$WATCHDOG_COMMAND_RUNTIME_DIR"
   rm -rf "$WATCHDOG_COMMAND_RUNTIME_DIR/src" "$WATCHDOG_COMMAND_RUNTIME_DIR/node_modules"
   cp -R "$REPO_ROOT/src" "$WATCHDOG_COMMAND_RUNTIME_DIR/src"
@@ -35,8 +40,8 @@ fi
 mkdir -p "$LAUNCH_AGENT_DIR" "$WATCHDOG_COMMAND_LOG_DIR" "$(dirname "$WATCHDOG_COMMAND_CONFIG_FILE")"
 if [[ ! -f "$WATCHDOG_COMMAND_CONFIG_FILE" ]]; then
   cp "$REPO_ROOT/config.example.json" "$WATCHDOG_COMMAND_CONFIG_FILE"
-  chmod 600 "$WATCHDOG_COMMAND_CONFIG_FILE"
 fi
+chmod 600 "$WATCHDOG_COMMAND_CONFIG_FILE"
 
 sync_runtime_tree
 sed \

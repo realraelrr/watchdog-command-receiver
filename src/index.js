@@ -24,9 +24,9 @@ function defaultConfigPath(env) {
   return env.WATCHDOG_COMMAND_CONFIG || `${env.HOME}/.watchdog-command-receiver/config/config.json`;
 }
 
-function buildReceiver(config, reply, auditPath) {
+function buildReceiver(config, reply, auditPath, env = process.env) {
   const policy = createPolicy(config);
-  const audit = createAuditLogger(auditPath ?? config.audit?.file ?? `${process.env.HOME}/.watchdog-command-receiver/audit/audit.jsonl`);
+  const audit = createAuditLogger(auditPath ?? config.audit?.file ?? `${env.HOME}/.watchdog-command-receiver/audit/audit.jsonl`);
   return createReceiver({
     config,
     policy,
@@ -38,6 +38,11 @@ function buildReceiver(config, reply, auditPath) {
 
 export async function main(argv = process.argv.slice(2), env = process.env, io = process.stdout) {
   const mode = argv[0] ?? 'serve';
+  if (mode !== 'serve' && mode !== 'simulate') {
+    io.write(`Unknown mode: ${mode}\n`);
+    return 64;
+  }
+
   const configPath = optionValue(argv, '--config', defaultConfigPath(env));
   const config = loadConfig(configPath);
   validateConfig(config);
@@ -47,14 +52,9 @@ export async function main(argv = process.argv.slice(2), env = process.env, io =
     const chatId = optionValue(argv, '--chat', 'local');
     const receiver = buildReceiver(config, async (_context, text) => {
       io.write(`${text}\n`);
-    }, config.audit?.file);
+    }, config.audit?.file, env);
     await receiver.handleMessage({ senderId, chatId, text: messageArg(argv) });
     return 0;
-  }
-
-  if (mode !== 'serve') {
-    io.write(`Unknown mode: ${mode}\n`);
-    return 64;
   }
 
   const transport = createFeishuTransport({
@@ -62,7 +62,7 @@ export async function main(argv = process.argv.slice(2), env = process.env, io =
     config,
     onMessage: async (message) => receiver.handleMessage(message),
   });
-  const receiver = buildReceiver(config, (context, text) => transport.reply(context, text), config.audit?.file);
+  const receiver = buildReceiver(config, (context, text) => transport.reply(context, text), config.audit?.file, env);
   transport.start();
   return 0;
 }

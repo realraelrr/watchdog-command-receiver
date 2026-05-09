@@ -92,6 +92,7 @@ test('runtime simulate mode invokes receiver and writes output', async () => {
     configPath,
     JSON.stringify({
       policy: { allowedSenderIds: ['ou_admin'], allowedChatIds: ['oc_ops'], cooldownMs: 1000 },
+      audit: { file: path.join(tempDir, 'audit.jsonl') },
       targets: {
         demo: {
           label: 'Demo',
@@ -119,7 +120,7 @@ test('runtime simulate mode invokes receiver and writes output', async () => {
 
   assert.equal(exitCode, 0);
   assert.match(writes.join(''), /succeeded/);
-  assert.match(writes.join(''), /simulated command/);
+  assert.doesNotMatch(writes.join(''), /simulated command/);
 });
 
 test('runtime CLI starts even when project path contains spaces', () => {
@@ -140,4 +141,12 @@ test('runtime CLI starts even when project path contains spaces', () => {
 
   assert.match(output, /hermes restart gateway/);
   assert.match(output, /openclaw restart gateway/);
+});
+
+test('runtime reports unknown mode before loading config', async () => {
+  const writes = [];
+  const exitCode = await main(['bogus'], { HOME: '/no/such/home' }, { write: (text) => writes.push(text) });
+
+  assert.equal(exitCode, 64);
+  assert.match(writes.join(''), /Unknown mode: bogus/);
 });

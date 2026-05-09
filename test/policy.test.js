@@ -28,18 +28,20 @@ test('policy denies unauthorized senders and chats', () => {
   });
 });
 
-test('policy allows all when allowlists are empty', () => {
+test('policy fails closed when allowlists are empty', () => {
   const policy = createPolicy({ policy: { allowedSenderIds: [], allowedChatIds: [] } }, { now: () => 1000 });
 
-  assert.deepEqual(policy.authorize({ senderId: 'anyone', chatId: 'anywhere' }), { ok: true });
+  assert.deepEqual(policy.authorize({ senderId: 'anyone', chatId: 'anywhere' }), {
+    ok: false,
+    reason: 'policy_not_configured',
+  });
 });
 
-test('policy enforces per-command cooldown after execution', () => {
+test('policy reserves cooldown before execution to block concurrent duplicates', () => {
   let now = 1000;
   const policy = createPolicy(baseConfig, { now: () => now });
 
   assert.deepEqual(policy.beforeExecute(context, 'openclaw.restart.gateway'), { ok: true });
-  policy.recordExecution('openclaw.restart.gateway');
   assert.deepEqual(policy.beforeExecute(context, 'openclaw.restart.gateway'), {
     ok: false,
     reason: 'cooldown_active',
@@ -50,10 +52,16 @@ test('policy enforces per-command cooldown after execution', () => {
   assert.deepEqual(policy.beforeExecute(context, 'openclaw.restart.gateway'), { ok: true });
 });
 
-test('policy creates and consumes scoped confirmations', () => {
+test('policy creates one scoped confirmation per command and consumes it once', () => {
   let now = 1000;
   const policy = createPolicy(baseConfig, { now: () => now, tokenFactory: () => 'abc123' });
 
+  assert.deepEqual(policy.beforeExecute(context, 'hermes.restart.all'), {
+    ok: false,
+    reason: 'confirmation_required',
+    token: 'abc123',
+    expiresAt: 6000,
+  });
   assert.deepEqual(policy.beforeExecute(context, 'hermes.restart.all'), {
     ok: false,
     reason: 'confirmation_required',
@@ -67,6 +75,12 @@ test('policy creates and consumes scoped confirmations', () => {
   assert.deepEqual(policy.confirm(context, 'abc123'), {
     ok: true,
     commandKey: 'hermes.restart.all',
+  });
+  assert.deepEqual(policy.beforeExecute(context, 'hermes.restart.all', { skipConfirmation: true }), { ok: true });
+  assert.deepEqual(policy.beforeExecute(context, 'hermes.restart.all', { skipConfirmation: true }), {
+    ok: false,
+    reason: 'cooldown_active',
+    retryAfterMs: 1000,
   });
   assert.deepEqual(policy.confirm(context, 'abc123'), {
     ok: false,

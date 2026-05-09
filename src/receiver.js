@@ -1,13 +1,12 @@
 import { parseCommand } from './parser.js';
 import { commandKey, listCommands, resolveCommand } from './registry.js';
-import { summarizeText } from './executor.js';
 
 export function formatHelp() {
   return [
     'Commands:',
     '/wd help',
     '/wd list',
-    '/wd restart <target> <subject>',
+    '/wd <action> <target> <subject>',
     'confirm <token>',
   ].join('\n');
 }
@@ -21,11 +20,10 @@ export function formatCommandList(config) {
 }
 
 function formatExecutionReply(command, result) {
-  const summary = summarizeText(result.stdout || result.stderr || result.reason || '', 300);
   if (result.ok) {
-    return `Command ${command.key} succeeded.${summary ? `\n${summary}` : ''}`;
+    return `Command ${command.key} succeeded.`;
   }
-  return `Command ${command.key} failed: ${result.reason}.${summary ? `\n${summary}` : ''}`;
+  return `Command ${command.key} failed: ${result.reason}.`;
 }
 
 export function createReceiver({ config, policy, executor, audit, reply }) {
@@ -34,10 +32,10 @@ export function createReceiver({ config, policy, executor, audit, reply }) {
   }
 
   async function runResolvedCommand(context, rawText, parsed, command, options = {}) {
-    if (!options.skipGate) {
-      const gate = policy.beforeExecute(context, command.key);
+    {
+      const gate = policy.beforeExecute(context, command.key, { skipConfirmation: Boolean(options.skipGate) });
       if (!gate.ok && gate.reason === 'confirmation_required') {
-        await record({ decision: 'confirmation_required', commandKey: command.key, senderId: context.senderId, chatId: context.chatId, rawText, token: gate.token });
+        await record({ decision: 'confirmation_required', commandKey: command.key, senderId: context.senderId, chatId: context.chatId, rawText });
         await reply(context, `Confirmation required for ${command.key}. Reply: confirm ${gate.token}`);
         return;
       }
@@ -48,7 +46,12 @@ export function createReceiver({ config, policy, executor, audit, reply }) {
       }
     }
 
-    const result = await executor(command);
+    let result;
+    try {
+      result = await executor(command);
+    } catch (error) {
+      result = { ok: false, exitCode: null, reason: 'executor_error', stdout: '', stderr: error.message, timedOut: false };
+    }
     policy.recordExecution(command.key);
     await record({
       decision: 'executed',
@@ -60,8 +63,8 @@ export function createReceiver({ config, policy, executor, audit, reply }) {
       ok: result.ok,
       exitCode: result.exitCode,
       reason: result.reason,
-      stdout: summarizeText(result.stdout, 400),
-      stderr: summarizeText(result.stderr, 400),
+      stdoutTruncated: Boolean(result.stdoutTruncated),
+      stderrTruncated: Boolean(result.stderrTruncated),
     });
     await reply(context, formatExecutionReply(command, result));
   }

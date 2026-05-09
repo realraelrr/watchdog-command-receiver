@@ -38,6 +38,10 @@ export function createFeishuTransport({ Lark, config, onMessage, logger = consol
         logger.debug?.('ignored non-command Feishu event');
         return;
       }
+      if (!/^(\/(?:watchdog|wd)\b|confirm\s+)/.test(message.text)) {
+        logger.debug?.('ignored non-command Feishu text');
+        return;
+      }
       await onMessage(message);
     },
   });

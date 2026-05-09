@@ -40,6 +40,30 @@ test('executor times out long-running commands', async () => {
   assert.equal(result.reason, 'timeout');
 });
 
+test('executor escalates timeout when child ignores SIGTERM', async () => {
+  const result = await executeCommand({
+    argv: [process.execPath, '-e', 'process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)'],
+    timeoutMs: 30,
+    killGraceMs: 30,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.timedOut, true);
+  assert.equal(result.reason, 'timeout');
+});
+
+test('executor caps captured output before summarization', async () => {
+  const result = await executeCommand({
+    argv: [process.execPath, '-e', 'console.log("x".repeat(1000))'],
+    timeoutMs: 1000,
+    maxOutputBytes: 32,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.stdout.length <= 33, true);
+  assert.equal(result.stdoutTruncated, true);
+});
+
 test('summarizeText compacts whitespace and truncates long output', () => {
   assert.equal(summarizeText('  hello\n  world  ', 100), 'hello world');
   assert.equal(summarizeText('abcdef', 4), 'abc…');
@@ -66,4 +90,5 @@ test('audit logger appends JSONL records', async () => {
       reason: 'sender_not_allowed',
     },
   ]);
+  assert.equal((fs.statSync(auditPath).mode & 0o777), 0o600);
 });
