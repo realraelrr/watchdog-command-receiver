@@ -11,7 +11,7 @@ export function extractFeishuMessage(data) {
     return null;
   }
 
-  const text = typeof content.text === 'string' ? content.text.trim() : '';
+  const text = typeof content.text === 'string' ? normalizeFeishuCommandText(content.text) : '';
   const senderId = data?.sender?.sender_id?.open_id ?? data?.sender?.sender_id?.user_id ?? '';
   const chatId = message.chat_id ?? '';
   const chatType = message.chat_type ?? '';
@@ -20,6 +20,21 @@ export function extractFeishuMessage(data) {
   }
 
   return { senderId, chatId, chatType, text };
+}
+
+export function normalizeFeishuCommandText(text) {
+  let normalized = String(text ?? '').trim();
+  for (let i = 0; i < 5; i += 1) {
+    const next = normalized
+      .replace(/^<at\b[^>]*>.*?<\/at>\s*/iu, '')
+      .replace(/^@\S+\s+/u, '')
+      .trim();
+    if (next === normalized) {
+      return normalized;
+    }
+    normalized = next;
+  }
+  return normalized;
 }
 
 export function createFeishuTransport({ Lark, config, onMessage, logger = console }) {

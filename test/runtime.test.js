@@ -31,6 +31,39 @@ test('Feishu adapter extracts text message events', () => {
   );
 });
 
+test('Feishu adapter strips leading bot mentions before command parsing', () => {
+  assert.deepEqual(
+    extractFeishuMessage({
+      sender: { sender_id: { open_id: 'ou_admin' } },
+      message: {
+        chat_id: 'oc_ops',
+        chat_type: 'group',
+        message_type: 'text',
+        content: JSON.stringify({ text: '@Watchdog /wd list' }),
+      },
+    }),
+    {
+      senderId: 'ou_admin',
+      chatId: 'oc_ops',
+      chatType: 'group',
+      text: '/wd list',
+    },
+  );
+
+  assert.deepEqual(
+    extractFeishuMessage({
+      sender: { sender_id: { open_id: 'ou_admin' } },
+      message: {
+        chat_id: 'oc_ops',
+        chat_type: 'group',
+        message_type: 'text',
+        content: JSON.stringify({ text: '<at user_id="ou_bot">Watchdog</at> /wd list' }),
+      },
+    })?.text,
+    '/wd list',
+  );
+});
+
 test('Feishu adapter ignores non-text or malformed events', () => {
   assert.equal(extractFeishuMessage({ message: { message_type: 'image' } }), null);
   assert.equal(extractFeishuMessage({ message: { message_type: 'text', content: '{bad' } }), null);
