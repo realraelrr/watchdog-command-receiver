@@ -1,4 +1,5 @@
 {
+  "language": "en",
   "feishu": {
     "enabled": true,
     "appId": "cli_xxx",

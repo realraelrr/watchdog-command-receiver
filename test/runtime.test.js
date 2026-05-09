@@ -222,6 +222,7 @@ test('runtime CLI starts even when project path contains spaces', () => {
 
   assert.match(output, /\/wd restart hermes gateway/);
   assert.match(output, /\/wd restart openclaw gateway/);
+  assert.match(output, /Watchdog Help/);
 });
 
 test('runtime reports unknown mode before loading config', async () => {

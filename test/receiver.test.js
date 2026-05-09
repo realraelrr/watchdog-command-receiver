@@ -74,6 +74,8 @@ test('config loader reads and validates config files', () => {
       demo: { commands: { restart: { gateway: { argv: ['/bin/echo', 1] } } } },
     },
   }), /argv/);
+  assert.doesNotThrow(() => validateConfig({ ...testConfig(), language: 'zh-CN' }));
+  assert.throws(() => validateConfig({ ...testConfig(), language: 'fr' }), /language/);
 });
 
 test('receiver denies unauthorized messages before parsing commands', async () => {
@@ -103,24 +105,38 @@ test('receiver preserves chat type for direct-message authorization', async () =
   assert.equal(auditEntries[0].decision, 'help');
 });
 
-test('receiver replies with help as the full command menu', async () => {
+test('receiver replies with English help by default', async () => {
   const { receiver, replies } = harness();
 
   await receiver.handleMessage({ ...context, text: '/wd help' });
 
-  assert.match(replies[0], /Watchdog 使用说明/);
-  assert.match(replies[0], /可用操作/);
+  assert.match(replies[0], /Watchdog Help/);
+  assert.match(replies[0], /Available Actions/);
   assert.match(replies[0], /Hermes Gateway/);
-  assert.match(replies[0], /1\. 重启 Hermes 服务 \+ Hermes 的 Tunnel/);
-  assert.match(replies[0], /2\. 重启 Hermes 服务/);
-  assert.match(replies[0], /3\. 重启 Hermes 的 Tunnel/);
+  assert.match(replies[0], /1\. Restart Hermes service \+ Hermes tunnel/);
+  assert.match(replies[0], /2\. Restart Hermes service/);
+  assert.match(replies[0], /3\. Restart Hermes tunnel/);
   assert.match(replies[0], /\/wd restart hermes all/);
   assert.match(replies[0], /\/wd restart hermes cloudflared/);
   assert.doesNotMatch(replies[0], /\/wd list/);
-  assert.doesNotMatch(replies[0], /确认/);
+  assert.doesNotMatch(replies[0], /confirm/);
   assert.match(replies[0], /OpenClaw Gateway/);
-  assert.match(replies[0], /重启 OpenClaw 服务/);
+  assert.match(replies[0], /Restart OpenClaw service/);
   assert.match(replies[0], /\/wd restart openclaw gateway/);
+});
+
+test('receiver supports Chinese help from config and command override', async () => {
+  const zhConfig = { ...testConfig(), language: 'zh-CN' };
+  const { receiver, replies } = harness(zhConfig);
+
+  await receiver.handleMessage({ ...context, text: '/wd help' });
+  await receiver.handleMessage({ ...context, text: '/wd help en' });
+  await receiver.handleMessage({ ...context, text: '/wd help zh' });
+
+  assert.match(replies[0], /Watchdog 使用说明/);
+  assert.match(replies[0], /重启 Hermes 服务 \+ Hermes 的 Tunnel/);
+  assert.match(replies[1], /Watchdog Help/);
+  assert.match(replies[2], /Watchdog 使用说明/);
 });
 
 test('receiver rejects removed list and confirmation commands without fallback menus', async () => {
@@ -129,10 +145,10 @@ test('receiver rejects removed list and confirmation commands without fallback m
   await receiver.handleMessage({ ...context, text: '/wd list' });
   await receiver.handleMessage({ ...context, text: 'confirm abc123' });
 
-  assert.match(replies[0], /无法识别这个命令/);
+  assert.match(replies[0], /I do not recognize that command/);
   assert.match(replies[0], /\/wd help/);
-  assert.doesNotMatch(replies[0], /Watchdog 可用操作/);
-  assert.match(replies[1], /无法识别这个命令/);
+  assert.doesNotMatch(replies[0], /Available Actions/);
+  assert.match(replies[1], /I do not recognize that command/);
   assert.equal(auditEntries[0].decision, 'unknown');
   assert.equal(auditEntries[1].decision, 'unknown');
 });

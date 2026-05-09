@@ -19,6 +19,9 @@ export function validateConfig(config) {
   if (config.policy?.allowDirectMessages !== undefined && typeof config.policy.allowDirectMessages !== 'boolean') {
     throw new Error('policy.allowDirectMessages must be a boolean');
   }
+  if (config.language !== undefined && !['en', 'zh-CN'].includes(config.language)) {
+    throw new Error('language must be en or zh-CN');
+  }
 
   if (!config.targets || typeof config.targets !== 'object' || Object.keys(config.targets).length === 0) {
     throw new Error('config targets must contain at least one target');
