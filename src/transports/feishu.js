@@ -14,11 +14,12 @@ export function extractFeishuMessage(data) {
   const text = typeof content.text === 'string' ? content.text.trim() : '';
   const senderId = data?.sender?.sender_id?.open_id ?? data?.sender?.sender_id?.user_id ?? '';
   const chatId = message.chat_id ?? '';
+  const chatType = message.chat_type ?? '';
   if (!text || !senderId || !chatId) {
     return null;
   }
 
-  return { senderId, chatId, text };
+  return { senderId, chatId, chatType, text };
 }
 
 export function createFeishuTransport({ Lark, config, onMessage, logger = console }) {
@@ -42,7 +43,15 @@ export function createFeishuTransport({ Lark, config, onMessage, logger = consol
         logger.debug?.('ignored non-command Feishu text');
         return;
       }
+      logger.info?.('received Feishu command', {
+        senderId: message.senderId,
+        chatId: message.chatId,
+        chatType: message.chatType,
+      });
       await onMessage(message);
+    },
+    'im.chat.member.bot.added_v1': (data) => {
+      logger.info?.('Feishu bot added to chat', { chatId: data?.chat_id });
     },
   });
 

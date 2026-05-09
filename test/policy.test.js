@@ -28,6 +28,21 @@ test('policy denies unauthorized senders and chats', () => {
   });
 });
 
+test('policy allows direct messages from allowed senders when enabled', () => {
+  const policy = createPolicy({
+    policy: {
+      ...baseConfig.policy,
+      allowDirectMessages: true,
+    },
+  }, { now: () => 1000 });
+
+  assert.deepEqual(policy.authorize({ senderId: 'ou_admin', chatId: 'oc_direct', chatType: 'p2p' }), { ok: true });
+  assert.deepEqual(policy.authorize({ senderId: 'ou_admin', chatId: 'oc_other', chatType: 'group' }), {
+    ok: false,
+    reason: 'chat_not_allowed',
+  });
+});
+
 test('policy fails closed when allowlists are empty', () => {
   const policy = createPolicy({ policy: { allowedSenderIds: [], allowedChatIds: [] } }, { now: () => 1000 });
 

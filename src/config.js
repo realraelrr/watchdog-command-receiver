@@ -16,6 +16,9 @@ export function validateConfig(config) {
   if (!Array.isArray(chatIds) || chatIds.length === 0) {
     throw new Error('policy.allowedChatIds must contain at least one chat id');
   }
+  if (config.policy?.allowDirectMessages !== undefined && typeof config.policy.allowDirectMessages !== 'boolean') {
+    throw new Error('policy.allowDirectMessages must be a boolean');
+  }
 
   if (!config.targets || typeof config.targets !== 'object' || Object.keys(config.targets).length === 0) {
     throw new Error('config targets must contain at least one target');

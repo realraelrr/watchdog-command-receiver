@@ -17,6 +17,7 @@ test('Feishu adapter extracts text message events', () => {
       sender: { sender_id: { open_id: 'ou_admin', user_id: 'user_1' } },
       message: {
         chat_id: 'oc_ops',
+        chat_type: 'p2p',
         message_type: 'text',
         content: JSON.stringify({ text: '/wd list' }),
       },
@@ -24,6 +25,7 @@ test('Feishu adapter extracts text message events', () => {
     {
       senderId: 'ou_admin',
       chatId: 'oc_ops',
+      chatType: 'p2p',
       text: '/wd list',
     },
   );
@@ -68,17 +70,18 @@ test('Feishu transport wires SDK event handler and reply API', async () => {
     },
     config: { feishu: { appId: 'cli_xxx', appSecret: 'secret' } },
     onMessage: async (message) => messages.push(message),
+    logger: { debug() {}, info() {} },
   });
 
   transport.start();
   await registeredHandler({
     sender: { sender_id: { open_id: 'ou_admin' } },
-    message: { chat_id: 'oc_ops', message_type: 'text', content: JSON.stringify({ text: '/wd list' }) },
+    message: { chat_id: 'oc_ops', chat_type: 'group', message_type: 'text', content: JSON.stringify({ text: '/wd list' }) },
   });
   await transport.reply({ chatId: 'oc_ops' }, 'hello');
 
   assert.ok(startedWith.eventDispatcher);
-  assert.deepEqual(messages, [{ senderId: 'ou_admin', chatId: 'oc_ops', text: '/wd list' }]);
+  assert.deepEqual(messages, [{ senderId: 'ou_admin', chatId: 'oc_ops', chatType: 'group', text: '/wd list' }]);
   assert.equal(createdMessages[0].data.receive_id, 'oc_ops');
   assert.equal(createdMessages[0].data.content, JSON.stringify({ text: 'hello' }));
 });

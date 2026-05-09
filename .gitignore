@@ -1,4 +1,5 @@
 node_modules/
 .state/
+.env
 .DS_Store
 npm-debug.log*
