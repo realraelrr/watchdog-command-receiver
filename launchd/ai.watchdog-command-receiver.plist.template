@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.watchdog-command-receiver</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>WorkingDirectory</key>
+  <string>__WATCHDOG_COMMAND_RUNTIME_DIR__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE_BIN__</string>
+    <string>__WATCHDOG_COMMAND_RUNTIME_DIR__/src/index.js</string>
+    <string>serve</string>
+    <string>--config</string>
+    <string>__WATCHDOG_COMMAND_CONFIG_FILE__</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+    <key>WATCHDOG_COMMAND_CONFIG</key>
+    <string>__WATCHDOG_COMMAND_CONFIG_FILE__</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__WATCHDOG_COMMAND_LOG_FILE__</string>
+
+  <key>StandardErrorPath</key>
+  <string>__WATCHDOG_COMMAND_LOG_FILE__</string>
+</dict>
+</plist>

@@ -1,0 +1,65 @@
+{
+  "feishu": {
+    "enabled": true,
+    "appId": "cli_xxx",
+    "appSecret": "replace-with-app-secret"
+  },
+  "policy": {
+    "allowedSenderIds": ["ou_admin"],
+    "allowedChatIds": ["oc_ops"],
+    "cooldownMs": 60000,
+    "confirmationTtlMs": 30000,
+    "requireConfirmation": ["hermes.restart.all"]
+  },
+  "audit": {
+    "file": "/Users/rael/.watchdog-command-receiver/audit/audit.jsonl"
+  },
+  "targets": {
+    "hermes": {
+      "label": "Hermes Gateway",
+      "commands": {
+        "restart": {
+          "gateway": {
+            "argv": [
+              "/Users/rael/.hermes-watchdog/runtime/current/gateway-watchdog.sh",
+              "restart",
+              "gateway"
+            ],
+            "timeoutMs": 30000
+          },
+          "cloudflared": {
+            "argv": [
+              "/Users/rael/.hermes-watchdog/runtime/current/gateway-watchdog.sh",
+              "restart",
+              "cloudflared"
+            ],
+            "timeoutMs": 30000
+          },
+          "all": {
+            "argv": [
+              "/Users/rael/.hermes-watchdog/runtime/current/gateway-watchdog.sh",
+              "restart",
+              "all"
+            ],
+            "timeoutMs": 30000
+          }
+        }
+      }
+    },
+    "openclaw": {
+      "label": "OpenClaw Gateway",
+      "commands": {
+        "restart": {
+          "gateway": {
+            "argv": [
+              "/Users/rael/.openclaw/watchdog/runtime/current/gateway-watchdog.sh",
+              "restart",
+              "gateway"
+            ],
+            "timeoutMs": 30000
+          }
+        }
+      }
+    }
+  }
+}

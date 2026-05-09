@@ -1,0 +1,21 @@
+{
+  "name": "watchdog-command-receiver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Feishu IM command receiver for configured local watchdog commands.",
+  "bin": {
+    "watchdog-command-receiver": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "find src test -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "simulate": "node src/index.js simulate"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
