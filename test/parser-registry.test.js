@@ -52,18 +52,14 @@ test('parser accepts watchdog aliases and configured action-shaped commands', ()
   });
 });
 
-test('parser accepts help, list, and confirmation commands', () => {
+test('parser accepts help commands', () => {
   assert.deepEqual(parseCommand('/watchdog help'), { type: 'help', raw: '/watchdog help' });
-  assert.deepEqual(parseCommand('/wd list'), { type: 'list', raw: '/wd list' });
-  assert.deepEqual(parseCommand('confirm 123456'), {
-    type: 'confirm',
-    token: '123456',
-    raw: 'confirm 123456',
-  });
 });
 
 test('parser rejects unknown text and shell-like extra arguments', () => {
   assert.equal(parseCommand('restart hermes gateway').type, 'unknown');
+  assert.equal(parseCommand('confirm 123456').type, 'unknown');
+  assert.equal(parseCommand('/wd list').type, 'unknown');
   assert.equal(parseCommand('/wd restart hermes gateway && rm -rf /').type, 'unknown');
   assert.equal(parseCommand('/wd restart hermes').type, 'unknown');
 });

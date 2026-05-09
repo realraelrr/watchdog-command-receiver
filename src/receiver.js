@@ -1,34 +1,29 @@
 import { parseCommand } from './parser.js';
 import { commandKey, listCommands, resolveCommand } from './registry.js';
 
-export function formatHelp() {
+export function formatHelp(config) {
   return [
     'Watchdog 使用说明',
     '',
     '你可以让我重启本机上的 Hermes 或 OpenClaw 网关。',
     '',
-    '查看可用操作：',
-    '/wd list',
-    '',
     '执行重启：',
     '/wd restart <服务> <对象>',
     '',
-    '示例：',
-    '/wd restart hermes gateway',
-    '/wd restart openclaw gateway',
-    '',
-    '如果提示需要确认，请回复：',
-    'confirm <验证码>',
+    ...formatCommandMenuLines(config),
   ].join('\n');
 }
 
-export function formatCommandList(config) {
+export function formatCommandMenu(config) {
+  return formatCommandMenuLines(config).join('\n');
+}
+
+function formatCommandMenuLines(config) {
   const commands = listCommands(config);
   if (commands.length === 0) {
-    return 'No configured commands.';
+    return ['当前没有配置可用操作。'];
   }
 
-  const confirmationRequired = new Set(config?.policy?.requireConfirmation ?? []);
   const grouped = new Map();
   for (const entry of commands) {
     if (!grouped.has(entry.label)) {
@@ -43,15 +38,12 @@ export function formatCommandList(config) {
     entries.sort(compareCommandEntries).forEach((entry, index) => {
       lines.push(`${index + 1}. ${formatCommandTitle(entry)}`);
       lines.push(`   /wd ${entry.action} ${entry.target} ${entry.subject}`);
-      if (confirmationRequired.has(entry.key)) {
-        lines.push('   需要二次确认');
-      }
     });
     lines.push('');
   }
   lines.push('其他命令');
   lines.push('/wd help 查看帮助');
-  return lines.join('\n').trimEnd();
+  return trimTrailingBlank(lines);
 }
 
 function formatCommandTitle(entry) {
@@ -72,9 +64,9 @@ function formatCommandTitle(entry) {
 
 function compareCommandEntries(a, b) {
   const subjectOrder = new Map([
-    ['gateway', 0],
-    ['cloudflared', 1],
-    ['all', 2],
+    ['all', 0],
+    ['gateway', 1],
+    ['cloudflared', 2],
   ]);
   const actionCompare = a.action.localeCompare(b.action);
   if (actionCompare !== 0) {
@@ -82,6 +74,14 @@ function compareCommandEntries(a, b) {
   }
   return (subjectOrder.get(a.subject) ?? 99) - (subjectOrder.get(b.subject) ?? 99)
     || a.subject.localeCompare(b.subject);
+}
+
+function trimTrailingBlank(lines) {
+  const trimmed = [...lines];
+  while (trimmed.at(-1) === '') {
+    trimmed.pop();
+  }
+  return trimmed;
 }
 
 function formatExecutionReply(command, result) {
@@ -96,14 +96,9 @@ export function createReceiver({ config, policy, executor, audit, reply }) {
     await audit?.record?.(entry);
   }
 
-  async function runResolvedCommand(context, rawText, parsed, command, options = {}) {
+  async function runResolvedCommand(context, rawText, parsed, command) {
     {
-      const gate = policy.beforeExecute(context, command.key, { skipConfirmation: Boolean(options.skipGate) });
-      if (!gate.ok && gate.reason === 'confirmation_required') {
-        await record({ decision: 'confirmation_required', commandKey: command.key, senderId: context.senderId, chatId: context.chatId, rawText });
-        await reply(context, `Confirmation required for ${command.key}. Reply: confirm ${gate.token}`);
-        return;
-      }
+      const gate = policy.beforeExecute(context, command.key);
       if (!gate.ok) {
         await record({ decision: 'denied', commandKey: command.key, senderId: context.senderId, chatId: context.chatId, rawText, reason: gate.reason });
         await reply(context, `Command ${command.key} denied: ${gate.reason}.`);
@@ -145,38 +140,21 @@ export function createReceiver({ config, policy, executor, audit, reply }) {
     }
 
     const parsed = parseCommand(rawText);
-    if (parsed.type === 'help' || parsed.type === 'unknown') {
-      await record({ decision: parsed.type, senderId: context.senderId, chatId: context.chatId, rawText });
-      await reply(context, formatHelp());
+    if (parsed.type === 'help') {
+      await record({ decision: 'help', senderId: context.senderId, chatId: context.chatId, rawText });
+      await reply(context, formatHelp(config));
       return;
     }
-    if (parsed.type === 'list') {
-      await record({ decision: 'listed', senderId: context.senderId, chatId: context.chatId, rawText });
-      await reply(context, formatCommandList(config));
-      return;
-    }
-    if (parsed.type === 'confirm') {
-      const confirmed = policy.confirm(context, parsed.token);
-      if (!confirmed.ok) {
-        await record({ decision: 'confirmation_failed', senderId: context.senderId, chatId: context.chatId, rawText, reason: confirmed.reason });
-        await reply(context, `Confirmation failed: ${confirmed.reason}.`);
-        return;
-      }
-      const [target, action, subject] = confirmed.commandKey.split('.');
-      const command = resolveCommand(config, { type: 'execute', target, action, subject });
-      if (!command) {
-        await record({ decision: 'missing_command', senderId: context.senderId, chatId: context.chatId, rawText, commandKey: confirmed.commandKey });
-        await reply(context, `Unknown target command: ${confirmed.commandKey}.`);
-        return;
-      }
-      await runResolvedCommand(context, rawText, { type: 'confirm', commandKey: confirmed.commandKey }, command, { skipGate: true });
+    if (parsed.type === 'unknown') {
+      await record({ decision: 'unknown', senderId: context.senderId, chatId: context.chatId, rawText });
+      await reply(context, '无法识别这个命令。请发送 /wd help 查看可用操作。');
       return;
     }
 
     const command = resolveCommand(config, parsed);
     if (!command) {
       await record({ decision: 'missing_command', senderId: context.senderId, chatId: context.chatId, rawText, commandKey: commandKey(parsed) });
-      await reply(context, `Unknown target command: ${commandKey(parsed)}.\n${formatCommandList(config)}`);
+      await reply(context, `Unknown target command: ${commandKey(parsed)}.\n${formatCommandMenu(config)}`);
       return;
     }
     await runResolvedCommand(context, rawText, parsed, command);

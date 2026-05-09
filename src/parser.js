@@ -7,11 +7,6 @@ export function parseCommand(text) {
     return { type: 'unknown', raw };
   }
 
-  const confirmParts = raw.split(/\s+/);
-  if (confirmParts.length === 2 && confirmParts[0].toLowerCase() === 'confirm' && tokenPattern.test(confirmParts[1])) {
-    return { type: 'confirm', token: confirmParts[1], raw };
-  }
-
   const parts = raw.split(/\s+/);
   if (!commandPrefixPattern.test(parts[0] ?? '')) {
     return { type: 'unknown', raw };
@@ -20,9 +15,6 @@ export function parseCommand(text) {
   const action = (parts[1] ?? '').toLowerCase();
   if (parts.length === 2 && action === 'help') {
     return { type: 'help', raw };
-  }
-  if (parts.length === 2 && action === 'list') {
-    return { type: 'list', raw };
   }
   if (parts.length === 4 && tokenPattern.test(action)) {
     const target = parts[2].toLowerCase();

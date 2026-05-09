@@ -19,14 +19,14 @@ test('Feishu adapter extracts text message events', () => {
         chat_id: 'oc_ops',
         chat_type: 'p2p',
         message_type: 'text',
-        content: JSON.stringify({ text: '/wd list' }),
+        content: JSON.stringify({ text: '/wd help' }),
       },
     }),
     {
       senderId: 'ou_admin',
       chatId: 'oc_ops',
       chatType: 'p2p',
-      text: '/wd list',
+      text: '/wd help',
     },
   );
 });
@@ -39,14 +39,14 @@ test('Feishu adapter strips leading bot mentions before command parsing', () => 
         chat_id: 'oc_ops',
         chat_type: 'group',
         message_type: 'text',
-        content: JSON.stringify({ text: '@Watchdog /wd list' }),
+        content: JSON.stringify({ text: '@Watchdog /wd help' }),
       },
     }),
     {
       senderId: 'ou_admin',
       chatId: 'oc_ops',
       chatType: 'group',
-      text: '/wd list',
+      text: '/wd help',
     },
   );
 
@@ -57,10 +57,10 @@ test('Feishu adapter strips leading bot mentions before command parsing', () => 
         chat_id: 'oc_ops',
         chat_type: 'group',
         message_type: 'text',
-        content: JSON.stringify({ text: '<at user_id="ou_bot">Watchdog</at> /wd list' }),
+        content: JSON.stringify({ text: '<at user_id="ou_bot">Watchdog</at> /wd help' }),
       },
     })?.text,
-    '/wd list',
+    '/wd help',
   );
 });
 
@@ -109,12 +109,12 @@ test('Feishu transport wires SDK event handler and reply API', async () => {
   transport.start();
   await registeredHandler({
     sender: { sender_id: { open_id: 'ou_admin' } },
-    message: { chat_id: 'oc_ops', chat_type: 'group', message_type: 'text', content: JSON.stringify({ text: '/wd list' }) },
+    message: { chat_id: 'oc_ops', chat_type: 'group', message_type: 'text', content: JSON.stringify({ text: '/wd help' }) },
   });
   await transport.reply({ chatId: 'oc_ops' }, 'hello');
 
   assert.ok(startedWith.eventDispatcher);
-  assert.deepEqual(messages, [{ senderId: 'ou_admin', chatId: 'oc_ops', chatType: 'group', text: '/wd list' }]);
+  assert.deepEqual(messages, [{ senderId: 'ou_admin', chatId: 'oc_ops', chatType: 'group', text: '/wd help' }]);
   assert.equal(createdMessages[0].data.receive_id, 'oc_ops');
   assert.equal(createdMessages[0].data.content, JSON.stringify({ text: 'hello' }));
 });
@@ -169,7 +169,7 @@ test('runtime CLI starts even when project path contains spaces', () => {
     'ou_admin',
     '--chat',
     'oc_ops',
-    '/wd list',
+    '/wd help',
   ], {
     cwd: repoRoot,
     encoding: 'utf8',

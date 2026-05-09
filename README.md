@@ -8,12 +8,9 @@ This service is intentionally independent from Hermes, OpenClaw, and any future 
 
 ```text
 /watchdog help
-/watchdog list
 /watchdog restart <target> <subject>
 /wd help
-/wd list
 /wd restart <target> <subject>
-confirm <token>
 ```
 
 Example targets in `config.example.json`:
@@ -50,7 +47,7 @@ Create a Feishu/Lark custom app, enable bot capability, grant message receive/se
 ## Local Simulation
 
 ```bash
-npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd list"
+npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd help"
 ```
 
 ## Install

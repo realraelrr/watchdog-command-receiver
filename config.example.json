@@ -8,9 +8,7 @@
     "allowedSenderIds": ["ou_admin"],
     "allowedChatIds": ["oc_ops"],
     "allowDirectMessages": true,
-    "cooldownMs": 60000,
-    "confirmationTtlMs": 30000,
-    "requireConfirmation": ["hermes.restart.all"]
+    "cooldownMs": 60000
   },
   "audit": {
     "file": "/Users/rael/.watchdog-command-receiver/audit/audit.jsonl"
@@ -22,7 +20,7 @@
         "restart": {
           "gateway": {
             "argv": [
-              "/Users/rael/.hermes-watchdog/runtime/current/gateway-watchdog.sh",
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
               "restart",
               "gateway"
             ],
@@ -30,7 +28,7 @@
           },
           "cloudflared": {
             "argv": [
-              "/Users/rael/.hermes-watchdog/runtime/current/gateway-watchdog.sh",
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
               "restart",
               "cloudflared"
             ],
@@ -38,7 +36,7 @@
           },
           "all": {
             "argv": [
-              "/Users/rael/.hermes-watchdog/runtime/current/gateway-watchdog.sh",
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
               "restart",
               "all"
             ],

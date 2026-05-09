@@ -13,8 +13,6 @@ function testConfig() {
       allowedSenderIds: ['ou_admin'],
       allowedChatIds: ['oc_ops'],
       cooldownMs: 1000,
-      confirmationTtlMs: 5000,
-      requireConfirmation: ['hermes.restart.all'],
     },
     targets: {
       hermes: {
@@ -98,31 +96,45 @@ test('receiver preserves chat type for direct-message authorization', async () =
     senderId: 'ou_admin',
     chatId: 'oc_direct',
     chatType: 'p2p',
-    text: '/wd list',
+    text: '/wd help',
   });
 
   assert.match(replies[0], /\/wd restart hermes gateway/);
-  assert.equal(auditEntries[0].decision, 'listed');
+  assert.equal(auditEntries[0].decision, 'help');
 });
 
-test('receiver replies with help and command list', async () => {
+test('receiver replies with help as the full command menu', async () => {
   const { receiver, replies } = harness();
 
   await receiver.handleMessage({ ...context, text: '/wd help' });
-  await receiver.handleMessage({ ...context, text: '/wd list' });
 
   assert.match(replies[0], /Watchdog 使用说明/);
-  assert.match(replies[0], /查看可用操作/);
-  assert.match(replies[0], /confirm <验证码>/);
-  assert.match(replies[1], /Watchdog 可用操作/);
-  assert.match(replies[1], /Hermes Gateway/);
-  assert.match(replies[1], /重启 Hermes 服务/);
-  assert.match(replies[1], /重启 Hermes 的 Tunnel/);
-  assert.match(replies[1], /\/wd restart hermes cloudflared/);
-  assert.match(replies[1], /需要二次确认/);
-  assert.match(replies[1], /OpenClaw Gateway/);
-  assert.match(replies[1], /重启 OpenClaw 服务/);
-  assert.match(replies[1], /\/wd restart openclaw gateway/);
+  assert.match(replies[0], /可用操作/);
+  assert.match(replies[0], /Hermes Gateway/);
+  assert.match(replies[0], /1\. 重启 Hermes 服务 \+ Hermes 的 Tunnel/);
+  assert.match(replies[0], /2\. 重启 Hermes 服务/);
+  assert.match(replies[0], /3\. 重启 Hermes 的 Tunnel/);
+  assert.match(replies[0], /\/wd restart hermes all/);
+  assert.match(replies[0], /\/wd restart hermes cloudflared/);
+  assert.doesNotMatch(replies[0], /\/wd list/);
+  assert.doesNotMatch(replies[0], /确认/);
+  assert.match(replies[0], /OpenClaw Gateway/);
+  assert.match(replies[0], /重启 OpenClaw 服务/);
+  assert.match(replies[0], /\/wd restart openclaw gateway/);
+});
+
+test('receiver rejects removed list and confirmation commands without fallback menus', async () => {
+  const { receiver, replies, auditEntries } = harness();
+
+  await receiver.handleMessage({ ...context, text: '/wd list' });
+  await receiver.handleMessage({ ...context, text: 'confirm abc123' });
+
+  assert.match(replies[0], /无法识别这个命令/);
+  assert.match(replies[0], /\/wd help/);
+  assert.doesNotMatch(replies[0], /Watchdog 可用操作/);
+  assert.match(replies[1], /无法识别这个命令/);
+  assert.equal(auditEntries[0].decision, 'unknown');
+  assert.equal(auditEntries[1].decision, 'unknown');
 });
 
 test('receiver executes direct commands and records audit', async () => {
@@ -164,17 +176,13 @@ test('receiver blocks concurrent duplicate executions with cooldown reservation'
   assert.equal(replies.some((reply) => /cooldown_active/.test(reply)), true);
 });
 
-test('receiver handles confirmation-required commands', async () => {
-  const policy = createPolicy(testConfig(), { now: () => 1000, tokenFactory: () => 'abc123' });
-  const { receiver, replies, executed } = harness(testConfig(), policy);
+test('receiver executes Hermes all without confirmation', async () => {
+  const { receiver, replies, executed } = harness();
 
   await receiver.handleMessage({ ...context, text: '/wd restart hermes all' });
-  assert.equal(executed.length, 0);
-  assert.match(replies[0], /confirm abc123/);
 
-  await receiver.handleMessage({ ...context, text: 'confirm abc123' });
   assert.deepEqual(executed, ['hermes.restart.all']);
-  assert.match(replies[1], /succeeded/);
+  assert.match(replies[0], /succeeded/);
 });
 
 test('receiver reports unknown configured targets', async () => {
