@@ -70,7 +70,7 @@ export function createReceiver({ config, policy, executor, audit, reply }) {
   }
 
   async function handleMessage(message) {
-    const context = { senderId: message.senderId, chatId: message.chatId };
+    const context = { senderId: message.senderId, chatId: message.chatId, chatType: message.chatType };
     const rawText = String(message.text ?? '');
     const auth = policy.authorize(context);
     if (!auth.ok) {

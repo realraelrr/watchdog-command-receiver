@@ -88,6 +88,22 @@ test('receiver denies unauthorized messages before parsing commands', async () =
   assert.equal(auditEntries[0].reason, 'sender_not_allowed');
 });
 
+test('receiver preserves chat type for direct-message authorization', async () => {
+  const config = testConfig();
+  config.policy.allowDirectMessages = true;
+  const { receiver, replies, auditEntries } = harness(config);
+
+  await receiver.handleMessage({
+    senderId: 'ou_admin',
+    chatId: 'oc_direct',
+    chatType: 'p2p',
+    text: '/wd list',
+  });
+
+  assert.match(replies[0], /hermes restart gateway/);
+  assert.equal(auditEntries[0].decision, 'listed');
+});
+
 test('receiver replies with help and command list', async () => {
   const { receiver, replies } = harness();
 
