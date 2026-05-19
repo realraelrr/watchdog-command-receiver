@@ -1,83 +1,69 @@
 # Watchdog Command Receiver
 
-用于本地 watchdog 命令的独立飞书/Lark IM 命令接收器。
+面向 agent 的飞书/Lark IM 命令接收器，用于本地 watchdog 操作。
 
 [English README](./README.md)
 
-这个服务刻意与 Hermes、OpenClaw 以及未来任何服务解耦。它接收飞书 bot 消息，执行本地策略校验，从配置中解析命令，用无 shell 的 argv 方式执行命令，写入审计记录，并把结果回复到会话。
+## 目的
+
+接收飞书 bot 消息，校验发送者/会话，从配置解析命令，用无 shell 的 argv 执行，写审计记录，并回复会话。目标完全由配置驱动；Hermes/OpenClaw 只是示例，不是硬编码服务。
 
 ## 命令
 
 ```text
-/watchdog help
-/watchdog help en
-/watchdog restart <target> <subject>
 /wd help
 /wd help en
+/wd help zh
 /wd restart <target> <subject>
+/wd enable <target> auto
+/wd disable <target> auto
+/wd start <target> agent
+/wd stop <target> agent
+/wd status <target> auto
 ```
 
-`config.example.json` 中的示例目标：
+`/watchdog` 等价于 `/wd`。
+
+示例配置命令：
 
 ```text
 /wd restart hermes all
 /wd restart hermes gateway
 /wd restart hermes cloudflared
 /wd restart openclaw gateway
+/wd disable hermes auto
+/wd enable hermes auto
+/wd stop hermes agent
+/wd start hermes agent
+/wd status hermes auto
+/wd disable openclaw auto
+/wd enable openclaw auto
+/wd stop openclaw agent
+/wd start openclaw agent
+/wd status openclaw auto
 ```
-
-## 语言
-
-默认回复语言是英文。可以在配置中设置默认中文：
-
-```json
-{
-  "language": "zh-CN"
-}
-```
-
-用户也可以在 help 命令里临时指定语言：
-
-```text
-/wd help en
-/wd help zh
-```
-
-支持的配置值是 `en` 和 `zh-CN`。
 
 ## 配置
-
-把 `config.example.json` 复制到：
 
 ```bash
 mkdir -p "$HOME/.watchdog-command-receiver/config"
 cp config.example.json "$HOME/.watchdog-command-receiver/config/config.json"
 ```
 
-然后在副本里填写：
+编辑副本：
 
-- 飞书 App ID 和 App Secret
-- 允许的发送者 ID
-- 允许的会话 ID
-- 目标命令 argv
-- 可选默认 `language`
+- `feishu.appId`、`feishu.appSecret`
+- `policy.allowedSenderIds`、`policy.allowedChatIds`、可选 `allowDirectMessages`
+- `targets.<name>.commands.<action>.<subject>.argv`
+- 可选 `language`：`en` 或 `zh-CN`
 
-目标完全由配置驱动。以后不用 Hermes、OpenClaw 或任何其他 gateway，只需要从配置里删除对应 target，不需要改代码。
+命令 argv 不经过 shell。删除配置里的 target 即可移除对应命令面。
 
-## 飞书设置
+## 飞书
 
-创建飞书/Lark 自建应用，启用机器人能力，授予消息接收和发送权限，订阅 `im.message.receive_v1`，并选择长连接事件投递。长连接可以让这个本地服务保持私有，不需要暴露公网回调 URL。
+使用飞书/Lark 自建应用，启用机器人能力，授予消息接收/发送权限，订阅 `im.message.receive_v1`，并使用长连接投递。App secret 和本地 `.env` 不要进 git。
 
-App Secret 和本地 `.env` 文件必须留在 git 之外。本仓库默认忽略 `.env`。
-
-## 本地模拟
-
-```bash
-npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd help"
-npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd help zh"
-```
-
-## 安装
+## 运行
 
 ```bash
 npm install
@@ -90,6 +76,13 @@ bash scripts/install-launchagent.sh
 - Config: `$HOME/.watchdog-command-receiver/config/config.json`
 - Log: `$HOME/.watchdog-command-receiver/logs/receiver.log`
 - Audit: `$HOME/.watchdog-command-receiver/audit/audit.jsonl`
+
+## 模拟
+
+```bash
+npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd help"
+npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd disable hermes auto"
+```
 
 ## 验证
 

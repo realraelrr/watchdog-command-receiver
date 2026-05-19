@@ -12,8 +12,20 @@ const config = {
           gateway: { argv: ['/bin/echo', 'hermes-gateway'], timeoutMs: 1000 },
           all: { argv: ['/bin/echo', 'hermes-all'], timeoutMs: 1000 },
         },
+        disable: {
+          auto: { argv: ['/bin/echo', 'hermes-disable'], timeoutMs: 1000 },
+        },
+        enable: {
+          auto: { argv: ['/bin/echo', 'hermes-enable'], timeoutMs: 1000 },
+        },
+        start: {
+          agent: { argv: ['/bin/echo', 'hermes-start'], timeoutMs: 1000 },
+        },
+        stop: {
+          agent: { argv: ['/bin/echo', 'hermes-stop'], timeoutMs: 1000 },
+        },
         status: {
-          brief: { argv: ['/bin/echo', 'hermes-status'], timeoutMs: 1000 },
+          auto: { argv: ['/bin/echo', 'hermes-status'], timeoutMs: 1000 },
         },
       },
     },
@@ -22,6 +34,9 @@ const config = {
       commands: {
         restart: {
           gateway: { argv: ['/bin/echo', 'openclaw-gateway'], timeoutMs: 1000 },
+        },
+        disable: {
+          auto: { argv: ['/bin/echo', 'openclaw-disable'], timeoutMs: 1000 },
         },
       },
     },
@@ -43,12 +58,19 @@ test('parser accepts watchdog aliases and configured action-shaped commands', ()
     subject: 'gateway',
     raw: '/wd restart openclaw gateway',
   });
-  assert.deepEqual(parseCommand('/wd status hermes brief'), {
+  assert.deepEqual(parseCommand('/wd status hermes auto'), {
     type: 'execute',
     action: 'status',
     target: 'hermes',
-    subject: 'brief',
-    raw: '/wd status hermes brief',
+    subject: 'auto',
+    raw: '/wd status hermes auto',
+  });
+  assert.deepEqual(parseCommand('/wd disable openclaw auto'), {
+    type: 'execute',
+    action: 'disable',
+    target: 'openclaw',
+    subject: 'auto',
+    raw: '/wd disable openclaw auto',
   });
 });
 
@@ -70,6 +92,20 @@ test('parser rejects unknown text and shell-like extra arguments', () => {
 test('registry lists and resolves only configured commands', () => {
   assert.deepEqual(listCommands(config), [
     {
+      key: 'hermes.disable.auto',
+      target: 'hermes',
+      label: 'Hermes Gateway',
+      action: 'disable',
+      subject: 'auto',
+    },
+    {
+      key: 'hermes.enable.auto',
+      target: 'hermes',
+      label: 'Hermes Gateway',
+      action: 'enable',
+      subject: 'auto',
+    },
+    {
       key: 'hermes.restart.all',
       target: 'hermes',
       label: 'Hermes Gateway',
@@ -84,11 +120,32 @@ test('registry lists and resolves only configured commands', () => {
       subject: 'gateway',
     },
     {
-      key: 'hermes.status.brief',
+      key: 'hermes.start.agent',
+      target: 'hermes',
+      label: 'Hermes Gateway',
+      action: 'start',
+      subject: 'agent',
+    },
+    {
+      key: 'hermes.status.auto',
       target: 'hermes',
       label: 'Hermes Gateway',
       action: 'status',
-      subject: 'brief',
+      subject: 'auto',
+    },
+    {
+      key: 'hermes.stop.agent',
+      target: 'hermes',
+      label: 'Hermes Gateway',
+      action: 'stop',
+      subject: 'agent',
+    },
+    {
+      key: 'openclaw.disable.auto',
+      target: 'openclaw',
+      label: 'OpenClaw Gateway',
+      action: 'disable',
+      subject: 'auto',
     },
     {
       key: 'openclaw.restart.gateway',

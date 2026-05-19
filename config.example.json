@@ -18,6 +18,24 @@
     "hermes": {
       "label": "Hermes Gateway",
       "commands": {
+        "disable": {
+          "auto": {
+            "argv": [
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
+              "disable"
+            ],
+            "timeoutMs": 30000
+          }
+        },
+        "enable": {
+          "auto": {
+            "argv": [
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
+              "enable"
+            ],
+            "timeoutMs": 30000
+          }
+        },
         "restart": {
           "gateway": {
             "argv": [
@@ -43,18 +61,90 @@
             ],
             "timeoutMs": 30000
           }
+        },
+        "start": {
+          "agent": {
+            "argv": [
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
+              "start"
+            ],
+            "timeoutMs": 30000
+          }
+        },
+        "status": {
+          "auto": {
+            "argv": [
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
+              "status"
+            ],
+            "timeoutMs": 30000
+          }
+        },
+        "stop": {
+          "agent": {
+            "argv": [
+              "/Users/rael/.hermes/watchdog/runtime/current/gateway-watchdog.sh",
+              "stop"
+            ],
+            "timeoutMs": 30000
+          }
         }
       }
     },
     "openclaw": {
       "label": "OpenClaw Gateway",
       "commands": {
+        "disable": {
+          "auto": {
+            "argv": [
+              "/Users/rael/.openclaw/watchdog/runtime/current/gateway-watchdog.sh",
+              "disable"
+            ],
+            "timeoutMs": 30000
+          }
+        },
+        "enable": {
+          "auto": {
+            "argv": [
+              "/Users/rael/.openclaw/watchdog/runtime/current/gateway-watchdog.sh",
+              "enable"
+            ],
+            "timeoutMs": 30000
+          }
+        },
         "restart": {
           "gateway": {
             "argv": [
               "/Users/rael/.openclaw/watchdog/runtime/current/gateway-watchdog.sh",
               "restart",
               "gateway"
+            ],
+            "timeoutMs": 30000
+          }
+        },
+        "start": {
+          "agent": {
+            "argv": [
+              "/Users/rael/.openclaw/watchdog/runtime/current/gateway-watchdog.sh",
+              "start"
+            ],
+            "timeoutMs": 30000
+          }
+        },
+        "status": {
+          "auto": {
+            "argv": [
+              "/Users/rael/.openclaw/watchdog/runtime/current/gateway-watchdog.sh",
+              "status"
+            ],
+            "timeoutMs": 30000
+          }
+        },
+        "stop": {
+          "agent": {
+            "argv": [
+              "/Users/rael/.openclaw/watchdog/runtime/current/gateway-watchdog.sh",
+              "stop"
             ],
             "timeoutMs": 30000
           }

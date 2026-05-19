@@ -1,83 +1,69 @@
 # Watchdog Command Receiver
 
-Standalone Feishu/Lark IM command receiver for local watchdog commands.
+Agent-facing Feishu/Lark IM command receiver for local watchdog actions.
 
 [中文文档](./README.zh-CN.md)
 
-This service is intentionally independent from Hermes, OpenClaw, and any future service. It receives Feishu bot messages, checks local policy, resolves commands from config, executes the configured argv without a shell, writes an audit record, and replies to the chat.
+## Purpose
+
+Receive Feishu bot messages, authorize sender/chat, resolve a configured command, execute argv without a shell, audit the decision, and reply to the chat. Targets are config-driven; Hermes/OpenClaw are examples, not hard-coded services.
 
 ## Commands
 
 ```text
-/watchdog help
-/watchdog help zh
-/watchdog restart <target> <subject>
 /wd help
+/wd help en
 /wd help zh
 /wd restart <target> <subject>
+/wd enable <target> auto
+/wd disable <target> auto
+/wd start <target> agent
+/wd stop <target> agent
+/wd status <target> auto
 ```
 
-Example targets in `config.example.json`:
+`/watchdog` is equivalent to `/wd`.
+
+Example configured commands:
 
 ```text
 /wd restart hermes all
 /wd restart hermes gateway
 /wd restart hermes cloudflared
 /wd restart openclaw gateway
+/wd disable hermes auto
+/wd enable hermes auto
+/wd stop hermes agent
+/wd start hermes agent
+/wd status hermes auto
+/wd disable openclaw auto
+/wd enable openclaw auto
+/wd stop openclaw agent
+/wd start openclaw agent
+/wd status openclaw auto
 ```
 
-## Language
-
-English is the default. Set `language` in the config to change the default reply language:
-
-```json
-{
-  "language": "zh-CN"
-}
-```
-
-Users can also override help language per message:
-
-```text
-/wd help en
-/wd help zh
-```
-
-Supported values are `en` and `zh-CN`.
-
-## Configuration
-
-Copy `config.example.json` to:
+## Config
 
 ```bash
 mkdir -p "$HOME/.watchdog-command-receiver/config"
 cp config.example.json "$HOME/.watchdog-command-receiver/config/config.json"
 ```
 
-Edit the copy with:
+Edit the copy:
 
-- Feishu App ID and App Secret
-- allowed sender IDs
-- allowed chat IDs
-- target argv entries
-- optional default `language`
+- `feishu.appId`, `feishu.appSecret`
+- `policy.allowedSenderIds`, `policy.allowedChatIds`, optional `allowDirectMessages`
+- `targets.<name>.commands.<action>.<subject>.argv`
+- optional `language`: `en` or `zh-CN`
 
-Targets are fully config-driven. Removing Hermes, OpenClaw, or any future gateway means deleting that target from config; no code change is required.
+Command argv is executed without a shell. Remove a target from config to remove that command surface.
 
-## Feishu Setup
+## Feishu
 
-Create a Feishu/Lark custom app, enable bot capability, grant message receive/send permissions, subscribe to `im.message.receive_v1`, and choose long-connection event delivery. Long connection keeps this local service private and avoids exposing a public callback URL.
+Use a Feishu/Lark custom app with bot capability, message receive/send permissions, `im.message.receive_v1`, and long-connection delivery. Keep app secret and local `.env` files out of git.
 
-The app secret and local `.env` files must stay outside git. This repository ignores `.env` by default.
-
-## Local Simulation
-
-```bash
-npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd help"
-npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd help zh"
-```
-
-## Install
+## Run
 
 ```bash
 npm install
@@ -90,6 +76,13 @@ Default paths:
 - Config: `$HOME/.watchdog-command-receiver/config/config.json`
 - Log: `$HOME/.watchdog-command-receiver/logs/receiver.log`
 - Audit: `$HOME/.watchdog-command-receiver/audit/audit.jsonl`
+
+## Simulate
+
+```bash
+npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd help"
+npm run simulate -- --config config.example.json --sender ou_admin --chat oc_ops "/wd disable hermes auto"
+```
 
 ## Verify
 

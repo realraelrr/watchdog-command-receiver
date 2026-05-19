@@ -23,6 +23,21 @@ function testConfig() {
             cloudflared: { argv: ['/bin/echo', 'hermes-cloudflared'], timeoutMs: 1000 },
             all: { argv: ['/bin/echo', 'hermes-all'], timeoutMs: 1000 },
           },
+          disable: {
+            auto: { argv: ['/bin/echo', 'hermes-disable'], timeoutMs: 1000 },
+          },
+          enable: {
+            auto: { argv: ['/bin/echo', 'hermes-enable'], timeoutMs: 1000 },
+          },
+          start: {
+            agent: { argv: ['/bin/echo', 'hermes-start'], timeoutMs: 1000 },
+          },
+          stop: {
+            agent: { argv: ['/bin/echo', 'hermes-stop'], timeoutMs: 1000 },
+          },
+          status: {
+            auto: { argv: ['/bin/echo', 'hermes-status'], timeoutMs: 1000 },
+          },
         },
       },
       openclaw: {
@@ -30,6 +45,21 @@ function testConfig() {
         commands: {
           restart: {
             gateway: { argv: ['/bin/echo', 'openclaw-gateway'], timeoutMs: 1000 },
+          },
+          disable: {
+            auto: { argv: ['/bin/echo', 'openclaw-disable'], timeoutMs: 1000 },
+          },
+          enable: {
+            auto: { argv: ['/bin/echo', 'openclaw-enable'], timeoutMs: 1000 },
+          },
+          start: {
+            agent: { argv: ['/bin/echo', 'openclaw-start'], timeoutMs: 1000 },
+          },
+          stop: {
+            agent: { argv: ['/bin/echo', 'openclaw-stop'], timeoutMs: 1000 },
+          },
+          status: {
+            auto: { argv: ['/bin/echo', 'openclaw-status'], timeoutMs: 1000 },
           },
         },
       },
@@ -111,18 +141,24 @@ test('receiver replies with English help by default', async () => {
   await receiver.handleMessage({ ...context, text: '/wd help' });
 
   assert.match(replies[0], /Watchdog Help/);
+  assert.match(replies[0], /Run a configured action:/);
   assert.match(replies[0], /Available Actions/);
   assert.match(replies[0], /Hermes Gateway/);
-  assert.match(replies[0], /1\. Restart Hermes service \+ Hermes tunnel/);
-  assert.match(replies[0], /2\. Restart Hermes service/);
-  assert.match(replies[0], /3\. Restart Hermes tunnel/);
+  assert.match(replies[0], /Restart Hermes service \+ Hermes tunnel/);
+  assert.match(replies[0], /Disable Hermes automatic repair/);
+  assert.match(replies[0], /Stop Hermes watchdog LaunchAgent/);
+  assert.match(replies[0], /Show Hermes watchdog status/);
   assert.match(replies[0], /\/wd restart hermes all/);
   assert.match(replies[0], /\/wd restart hermes cloudflared/);
+  assert.match(replies[0], /\/wd disable hermes auto/);
+  assert.match(replies[0], /\/wd stop hermes agent/);
   assert.doesNotMatch(replies[0], /\/wd list/);
   assert.doesNotMatch(replies[0], /confirm/);
   assert.match(replies[0], /OpenClaw Gateway/);
   assert.match(replies[0], /Restart OpenClaw service/);
+  assert.match(replies[0], /Enable OpenClaw automatic repair/);
   assert.match(replies[0], /\/wd restart openclaw gateway/);
+  assert.match(replies[0], /\/wd enable openclaw auto/);
 });
 
 test('receiver supports Chinese help from config and command override', async () => {
@@ -135,6 +171,7 @@ test('receiver supports Chinese help from config and command override', async ()
 
   assert.match(replies[0], /Watchdog 使用说明/);
   assert.match(replies[0], /重启 Hermes 服务 \+ Hermes 的 Tunnel/);
+  assert.match(replies[0], /关闭 Hermes 自动修复/);
   assert.match(replies[1], /Watchdog Help/);
   assert.match(replies[2], /Watchdog 使用说明/);
 });
@@ -199,6 +236,68 @@ test('receiver executes Hermes all without confirmation', async () => {
 
   assert.deepEqual(executed, ['hermes.restart.all']);
   assert.match(replies[0], /succeeded/);
+});
+
+test('receiver executes configured manual control commands', async () => {
+  const { receiver, replies, executed } = harness();
+
+  await receiver.handleMessage({ ...context, text: '/wd disable hermes auto' });
+  await receiver.handleMessage({ ...context, text: '/wd start openclaw agent' });
+
+  assert.deepEqual(executed, ['hermes.disable.auto', 'openclaw.start.agent']);
+  assert.match(replies[0], /Command hermes\.disable\.auto succeeded/);
+  assert.match(replies[1], /Command openclaw\.start\.agent succeeded/);
+});
+
+test('receiver includes status command output in replies', async () => {
+  const config = testConfig();
+  const replies = [];
+  const receiver = createReceiver({
+    config,
+    policy: createPolicy(config, { now: () => 1000, tokenFactory: () => 'abc123' }),
+    executor: async () => ({
+      ok: true,
+      exitCode: 0,
+      reason: 'ok',
+      stdout: 'auto_repair=disabled\nlaunchagent=loaded\nlaunchagent_pid=-\n',
+      stderr: '',
+      timedOut: false,
+    }),
+    audit: { record: async () => {} },
+    reply: async (_context, text) => replies.push(text),
+  });
+
+  await receiver.handleMessage({ ...context, text: '/wd status hermes auto' });
+
+  assert.match(replies[0], /Command hermes\.status\.auto succeeded/);
+  assert.match(replies[0], /auto_repair=disabled/);
+  assert.match(replies[0], /launchagent=loaded/);
+  assert.match(replies[0], /launchagent_pid=-/);
+});
+
+test('receiver includes command output in failure replies', async () => {
+  const config = testConfig();
+  const replies = [];
+  const receiver = createReceiver({
+    config,
+    policy: createPolicy(config, { now: () => 1000, tokenFactory: () => 'abc123' }),
+    executor: async () => ({
+      ok: false,
+      exitCode: 1,
+      reason: 'nonzero_exit',
+      stdout: 'watchdog_launchagent=start_failed\nreason=plist_missing\n',
+      stderr: '',
+      timedOut: false,
+    }),
+    audit: { record: async () => {} },
+    reply: async (_context, text) => replies.push(text),
+  });
+
+  await receiver.handleMessage({ ...context, text: '/wd start hermes agent' });
+
+  assert.match(replies[0], /Command hermes\.start\.agent failed: nonzero_exit/);
+  assert.match(replies[0], /watchdog_launchagent=start_failed/);
+  assert.match(replies[0], /reason=plist_missing/);
 });
 
 test('receiver reports unknown configured targets', async () => {

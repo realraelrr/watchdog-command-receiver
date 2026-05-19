@@ -7,8 +7,8 @@ const text = {
   en: {
     helpTitle: 'Watchdog Help',
     helpIntro: 'You can ask me to run configured local watchdog actions.',
-    restartHeading: 'Run a restart:',
-    restartSyntax: '/wd restart <service> <subject>',
+    restartHeading: 'Run a configured action:',
+    restartSyntax: '/wd <action> <service> <subject>',
     menuTitle: 'Available Actions',
     noCommands: 'No actions are configured.',
     otherCommands: 'Other Commands',
@@ -24,9 +24,9 @@ const text = {
   },
   'zh-CN': {
     helpTitle: 'Watchdog 使用说明',
-    helpIntro: '你可以让我重启本机上已配置的 watchdog 服务。',
-    restartHeading: '执行重启：',
-    restartSyntax: '/wd restart <服务> <对象>',
+    helpIntro: '你可以让我执行本机上已配置的 watchdog 操作。',
+    restartHeading: '执行已配置操作：',
+    restartSyntax: '/wd <动作> <服务> <对象>',
     menuTitle: 'Watchdog 可用操作',
     noCommands: '当前没有配置可用操作。',
     otherCommands: '其他命令',
@@ -109,13 +109,33 @@ function formatCommandTitle(entry, language) {
       'hermes.restart.gateway': 'Restart Hermes service',
       'hermes.restart.cloudflared': 'Restart Hermes tunnel',
       'hermes.restart.all': 'Restart Hermes service + Hermes tunnel',
+      'hermes.disable.auto': 'Disable Hermes automatic repair',
+      'hermes.enable.auto': 'Enable Hermes automatic repair',
+      'hermes.start.agent': 'Start Hermes watchdog LaunchAgent',
+      'hermes.stop.agent': 'Stop Hermes watchdog LaunchAgent',
+      'hermes.status.auto': 'Show Hermes watchdog status',
       'openclaw.restart.gateway': 'Restart OpenClaw service',
+      'openclaw.disable.auto': 'Disable OpenClaw automatic repair',
+      'openclaw.enable.auto': 'Enable OpenClaw automatic repair',
+      'openclaw.start.agent': 'Start OpenClaw watchdog LaunchAgent',
+      'openclaw.stop.agent': 'Stop OpenClaw watchdog LaunchAgent',
+      'openclaw.status.auto': 'Show OpenClaw watchdog status',
     },
     'zh-CN': {
       'hermes.restart.gateway': '重启 Hermes 服务',
       'hermes.restart.cloudflared': '重启 Hermes 的 Tunnel',
       'hermes.restart.all': '重启 Hermes 服务 + Hermes 的 Tunnel',
+      'hermes.disable.auto': '关闭 Hermes 自动修复',
+      'hermes.enable.auto': '开启 Hermes 自动修复',
+      'hermes.start.agent': '启动 Hermes watchdog LaunchAgent',
+      'hermes.stop.agent': '停止 Hermes watchdog LaunchAgent',
+      'hermes.status.auto': '查看 Hermes watchdog 状态',
       'openclaw.restart.gateway': '重启 OpenClaw 服务',
+      'openclaw.disable.auto': '关闭 OpenClaw 自动修复',
+      'openclaw.enable.auto': '开启 OpenClaw 自动修复',
+      'openclaw.start.agent': '启动 OpenClaw watchdog LaunchAgent',
+      'openclaw.stop.agent': '停止 OpenClaw watchdog LaunchAgent',
+      'openclaw.status.auto': '查看 OpenClaw watchdog 状态',
     },
   };
   const languageTitles = titles[normalizeLanguage(language)];
@@ -149,10 +169,41 @@ function trimTrailingBlank(lines) {
 
 function formatExecutionReply(command, result, language) {
   const copy = text[normalizeLanguage(language)];
+  const output = formatExecutionOutput(result);
   if (result.ok) {
+    if (command.action === 'status' && output) {
+      return `${copy.succeeded(command.key)}\n${output}`;
+    }
     return copy.succeeded(command.key);
   }
+  if (output) {
+    return `${copy.failed(command.key, result.reason)}\n${output}`;
+  }
   return copy.failed(command.key, result.reason);
+}
+
+function formatExecutionOutput(result) {
+  const lines = [];
+  const stdout = trimOutput(result.stdout);
+  const stderr = trimOutput(result.stderr);
+  if (stdout) {
+    lines.push(stdout);
+  }
+  if (stderr) {
+    lines.push(`stderr:\n${stderr}`);
+  }
+  return truncateOutput(lines.join('\n'), 1200);
+}
+
+function trimOutput(value) {
+  return String(value ?? '').trim();
+}
+
+function truncateOutput(value, maxLength) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
 export function createReceiver({ config, policy, executor, audit, reply }) {
