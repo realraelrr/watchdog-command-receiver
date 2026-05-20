@@ -4,6 +4,10 @@ Agent-facing Feishu/Lark IM command receiver for local watchdog actions.
 
 [中文文档](./README.zh-CN.md)
 
+Use it as the narrow command surface between a trusted chat operator and local
+watchdog scripts. Commands are allowlisted in config, executed without a shell,
+and written to an audit log.
+
 ## Purpose
 
 Receive Feishu bot messages, authorize sender/chat, resolve a configured command, execute argv without a shell, audit the decision, and reply to the chat. Targets are config-driven; Hermes/OpenClaw are examples, not hard-coded services.
